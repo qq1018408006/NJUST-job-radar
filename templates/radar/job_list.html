@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}招聘收件箱 · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="workspace-head">
+  <div>
+    <span class="eyebrow">LIVE OPPORTUNITY INDEX</span>
+    <h1>招聘收件箱</h1>
+    <p>未读与内容变更优先，未来活动按实际举办时间排列。</p>
+  </div>
+  <div class="workspace-tools">
+    <div class="sync-note">
+      <span class="pulse"></span>
+      {% if sync_enabled %}每日自动同步 {{ sync_schedule|join:" / " }}{% else %}自动同步已关闭{% endif %}
+    </div>
+    <form method="post" action="{% url 'bulk-mark-old-read' %}" data-bulk-read-form data-count="{{ counts.old_unread }}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <input type="hidden" name="confirmed_twice" value="">
+      <button class="button button--cleanup" type="submit" {% if not counts.old_unread %}disabled{% endif %}>整理昨天及以前未读 · {{ counts.old_unread }}</button>
+    </form>
+  </div>
+</section>
+
+<section class="metric-grid" aria-label="信息概览">
+  <a href="?view=unread" class="metric {% if current_view == 'unread' %}metric--active{% endif %}">
+    <span>待处理</span><strong>{{ counts.unread }}</strong><small>未读或有更新</small>
+  </a>
+  <a href="?view=new" class="metric {% if current_view == 'new' %}metric--active{% endif %}">
+    <span>新出现</span><strong>{{ counts.new }}</strong><small>从未打开</small>
+  </a>
+  <a href="?view=updated" class="metric {% if current_view == 'updated' %}metric--active{% endif %}">
+    <span>内容更新</span><strong>{{ counts.updated }}</strong><small>读过后又变化</small>
+  </a>
+  <a href="?view=upcoming" class="metric {% if current_view == 'upcoming' %}metric--active{% endif %}">
+    <span>即将举办</span><strong>{{ counts.upcoming }}</strong><small>今天及以后</small>
+  </a>
+</section>
+
+<nav class="view-tabs" aria-label="快速视图">
+  <a class="{% if current_view == 'all' %}active{% endif %}" href="?view=all">全部 <b>{{ counts.all }}</b></a>
+  <a class="{% if current_view == 'unread' %}active{% endif %}" href="?view=unread">未读 <b>{{ counts.unread }}</b></a>
+  <a class="{% if current_view == 'new' %}active{% endif %}" href="?view=new">新出现 <b>{{ counts.new }}</b></a>
+  <a class="{% if current_view == 'updated' %}active{% endif %}" href="?view=updated">有更新 <b>{{ counts.updated }}</b></a>
+  <a class="{% if current_view == 'upcoming' %}active{% endif %}" href="?view=upcoming">即将举办 <b>{{ counts.upcoming }}</b></a>
+  <a class="{% if current_view == 'starred' %}active{% endif %}" href="?view=starred">收藏 <b>{{ counts.starred }}</b></a>
+  <a class="{% if current_view == 'past' %}active{% endif %}" href="?view=past">已结束 <b>{{ counts.past }}</b></a>
+  <a class="{% if current_view == 'hidden' %}active{% endif %}" href="?view=hidden">隐藏 <b>{{ counts.hidden }}</b></a>
+</nav>
+
+<form method="get" class="filter-panel" data-filter-form>
+  <input type="hidden" name="view" value="{{ current_view }}">
+  <label class="filter-search">
+    <span>关键词</span>
+    <input type="search" name="q" value="{{ request.GET.q }}" placeholder="单位、标题、地点或学校">
+  </label>
+  <label><span>形式</span>
+    <select name="mode">
+      <option value="">全部</option>
+      <option value="offline" {% if request.GET.mode == 'offline' %}selected{% endif %}>线下</option>
+      <option value="online" {% if request.GET.mode == 'online' %}selected{% endif %}>线上</option>
+      <option value="unknown" {% if request.GET.mode == 'unknown' %}selected{% endif %}>未知</option>
+    </select>
+  </label>
+  <label><span>来源</span>
+    <select name="source">
+      <option value="">全部</option>
+      {% for source in sources %}<option value="{{ source.slug }}" {% if request.GET.source == source.slug %}selected{% endif %}>{{ source.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label><span>起始日期</span><input type="date" name="date_from" value="{{ request.GET.date_from }}"></label>
+  <label><span>截止日期</span><input type="date" name="date_to" value="{{ request.GET.date_to }}"></label>
+  <label><span>排序</span>
+    <select name="sort">
+      <option value="smart" {% if request.GET.sort == 'smart' or not request.GET.sort %}selected{% endif %}>智能：未读优先</option>
+      <option value="event_asc" {% if request.GET.sort == 'event_asc' %}selected{% endif %}>举办时间：从近到远</option>
+      <option value="event_desc" {% if request.GET.sort == 'event_desc' %}selected{% endif %}>举办时间：从远到近</option>
+      <option value="newest" {% if request.GET.sort == 'newest' %}selected{% endif %}>首次发现：最新优先</option>
+      <option value="changed" {% if request.GET.sort == 'changed' %}selected{% endif %}>内容变更：最新优先</option>
+      <option value="title" {% if request.GET.sort == 'title' %}selected{% endif %}>标题</option>
+      <option value="company" {% if request.GET.sort == 'company' %}selected{% endif %}>单位</option>
+    </select>
+  </label>
+  <div class="filter-actions">
+    <button class="button button--primary" type="submit">应用</button>
+    {% if filter_active %}<a class="button button--quiet" href="?view={{ current_view }}">清除</a>{% endif %}
+  </div>
+</form>
+
+<section class="results-card">
+  <div class="results-meta">
+    <span>当前结果 <strong>{{ page.paginator.count }}</strong> 条</span>
+    <span>第 {{ page.number }} / {{ page.paginator.num_pages|default:1 }} 页</span>
+  </div>
+  {% if page.object_list %}
+  <div class="job-table" role="table" aria-label="招聘信息">
+    <div class="job-table__head" role="row">
+      <span role="columnheader">状态</span><span role="columnheader">活动</span><span role="columnheader">举办时间</span><span role="columnheader">地点 / 来源</span><span role="columnheader">操作</span>
+    </div>
+    {% for item in page.object_list %}
+    <article id="item-{{ item.pk }}" class="job-row {% if item.unread_flag %}job-row--unread{% endif %}" role="row">
+      <div class="job-status" role="cell">
+        <span class="status-pill status-pill--{% if item.inbox_label == '新出现' %}new{% elif item.inbox_label == '有更新' %}updated{% else %}read{% endif %}">{{ item.inbox_label }}</span>
+        {% if item.user_starred %}<span class="starred-mark" title="已收藏">★</span>{% endif %}
+      </div>
+      <div class="job-main" role="cell">
+        <div class="job-kicker"><span>{{ item.get_mode_display }}</span><span>v{{ item.content_version }}</span></div>
+        <a href="{% url 'job-detail' item.pk %}" class="job-title">{{ item.title }}</a>
+        {% if item.company %}<p>{{ item.company }}</p>{% endif %}
+      </div>
+      <div class="job-time" role="cell">
+        {% if item.event_start %}<strong>{{ item.event_start|date:"m-d" }}</strong><span>{{ item.event_start|date:"H:i" }}{% if item.event_end %}–{{ item.event_end|date:"H:i" }}{% endif %}</span>
+        {% elif item.event_date %}<strong>{{ item.event_date|date:"m-d" }}</strong><span>时间待定</span>{% else %}<span>时间待定</span>{% endif %}
+      </div>
+      <div class="job-place" role="cell"><strong>{{ item.location|default:"地点待定" }}</strong><span>{{ item.source.name }}</span></div>
+      <div class="job-actions" role="cell">
+        <form method="post" action="{% url 'item-state' item.pk %}">
+          {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+          {% if item.user_starred %}<button name="action" value="unstar" title="取消收藏" aria-label="取消收藏">★</button>{% else %}<button name="action" value="star" title="收藏" aria-label="收藏">☆</button>{% endif %}
+        </form>
+        {% if item.unread_flag %}
+        <form method="post" action="{% url 'item-state' item.pk %}" data-read-form>{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}#item-{{ item.pk }}"><button name="action" value="read">已读</button></form>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><span>⌁</span><h2>这个视图里还没有内容</h2><p>可以清除部分筛选条件，或等待下一次同步。</p></div>
+  {% endif %}
+</section>
+
+{% if page.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="分页">
+  {% if page.has_previous %}<a href="?{% if query_without_page %}{{ query_without_page }}&{% endif %}page={{ page.previous_page_number }}">← 上一页</a>{% else %}<span>← 上一页</span>{% endif %}
+  <strong>{{ page.number }} / {{ page.paginator.num_pages }}</strong>
+  {% if page.has_next %}<a href="?{% if query_without_page %}{{ query_without_page }}&{% endif %}page={{ page.next_page_number }}">下一页 →</a>{% else %}<span>下一页 →</span>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

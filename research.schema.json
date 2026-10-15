@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "organization": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "official_name": {"type": "string"},
+        "organization_type": {"type": "string"},
+        "listed_status": {"type": "string"},
+        "stock_codes": {"type": "array", "items": {"type": "string"}},
+        "overview": {"type": "string"},
+        "source_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["official_name", "organization_type", "listed_status", "stock_codes", "overview", "source_ids"]
+    },
+    "business_segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "source_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["name", "description", "source_ids"]
+      }
+    },
+    "affiliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parent_organization": {"type": "string"},
+        "affiliation_chain": {"type": "array", "items": {"type": "string"}},
+        "administrative_level": {"type": "string"},
+        "level_basis": {"type": "string"},
+        "source_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["parent_organization", "affiliation_chain", "administrative_level", "level_basis", "source_ids"]
+    },
+    "financials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fiscal_year": {"type": "string"},
+          "revenue": {"type": "string"},
+          "operating_cost": {"type": "string"},
+          "period_expenses": {"type": "string"},
+          "rd_expense": {"type": "string"},
+          "net_profit": {"type": "string"},
+          "note": {"type": "string"},
+          "source_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["fiscal_year", "revenue", "operating_cost", "period_expenses", "rd_expense", "net_profit", "note", "source_ids"]
+      }
+    },
+    "career_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "development_outlook": {"type": "string"},
+        "growth_drivers": {"type": "array", "items": {"type": "string"}},
+        "risks": {"type": "array", "items": {"type": "string"}},
+        "job_seeker_takeaways": {"type": "array", "items": {"type": "string"}},
+        "source_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["development_outlook", "growth_drivers", "risks", "job_seeker_takeaways", "source_ids"]
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "url": {"type": "string"},
+          "publisher": {"type": "string"},
+          "published_at": {"type": "string"},
+          "accessed_at": {"type": "string"}
+        },
+        "required": ["id", "title", "url", "publisher", "published_at", "accessed_at"]
+      }
+    },
+    "unknowns": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "string", "enum": ["高", "中", "低"]}
+  },
+  "required": ["organization", "business_segments", "affiliation", "financials", "career_assessment", "sources", "unknowns", "confidence"]
+}

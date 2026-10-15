@@ -1,0 +1,140 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .research-range { max-width: 1100px; }
+    .research-range .form-row { padding: 12px 0; }
+    .research-range .help { margin: 6px 0 0 170px; }
+    .research-range .errorlist { margin-left: 170px; }
+    .research-range label { display: inline-block; width: 160px; font-weight: 600; }
+    .research-range input, .research-range select { min-width: 240px; }
+    .research-range input[type="checkbox"] { min-width: auto; width: auto; margin-right: 8px; }
+    .research-summary { margin: 20px 0; padding: 16px; border: 1px solid var(--hairline-color); border-radius: 6px; }
+    .research-warning { color: var(--body-quiet-color); }
+    .research-confirm { display: block; width: auto !important; margin: 14px 0; font-weight: 600; }
+    .research-confirm input { min-width: auto; margin-right: 8px; }
+    .research-range table { width: 100%; }
+    .research-range .results { overflow-x: auto; }
+    .research-range button.default {
+      padding: 10px 15px;
+      border: 0;
+      border-radius: 4px;
+      background: var(--button-bg);
+      color: var(--button-fg);
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .research-range button.default:hover { background: var(--button-hover-bg); }
+    .research-action { display: inline-block; padding: 3px 7px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+    .research-action--new { background: #e9f7f5; color: #176b62; }
+    .research-action--overwrite { background: #fff1df; color: #95520a; }
+    @media (max-width: 767px) {
+      .research-range label { display: block; width: auto; margin-bottom: 6px; }
+      .research-range .help, .research-range .errorlist { margin-left: 0; }
+      .research-range input, .research-range select { min-width: 0; width: 100%; }
+      .research-range table { min-width: 780px; }
+    }
+  </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; 按日期批量研究
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main" class="research-range">
+    <p>
+      默认只选择当前 AI 流程版本 v{{ pipeline_version }} 尚无调研快照的招聘信息；
+      勾选“覆盖已有总结”后则选择日期范围内的全部招聘信息。
+      第一步仅预览，不会调用 AI；最终确认后才会加入异步队列。
+    </p>
+    <p class="research-warning">
+      覆盖模式不会预先删除旧快照，只有新调研成功后才会替换。宿主机 Worker 每两分钟最多处理一条，
+      范围较大时会持续较久并消耗所选 AI 工具的用量。
+    </p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="form-row{% if field.errors %} errors{% endif %}">
+          {{ field.errors }}
+          {{ field.label_tag }} {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+        </div>
+      {% endfor %}
+
+      <div class="submit-row">
+        <button type="submit" name="action" value="preview" class="default">预览将处理的条目</button>
+      </div>
+
+      {% if previewed %}
+        <section class="research-summary">
+          <h2>预览结果</h2>
+          <p>
+            {% if overwrite_existing %}
+              共选中 <strong>{{ candidate_count }}</strong> 条招聘信息；其中
+              <strong>{{ existing_snapshot_count }}</strong> 条已有 v{{ pipeline_version }} AI 快照，成功后将被覆盖；另有
+              <strong>{{ already_queued_count }}</strong> 条已经在等待或运行，不会重复建立任务。
+            {% else %}
+              共找到 <strong>{{ candidate_count }}</strong> 条缺少 v{{ pipeline_version }} AI 快照的招聘信息；
+              其中 <strong>{{ already_queued_count }}</strong> 条已经在等待或运行，不会重复建立任务。
+            {% endif %}
+          </p>
+          {% if candidate_count %}
+            <label class="research-confirm">
+              <input type="checkbox" name="confirmed" value="yes" required>
+              我已核对日期范围{% if overwrite_existing %}及 {{ existing_snapshot_count }} 条覆盖任务{% endif %}，并确认加入 AI 调研队列
+            </label>
+            <button type="submit" name="action" value="enqueue" class="default">最终确认并加入队列</button>
+          {% else %}
+            <p>这个范围内没有需要补齐的条目。</p>
+          {% endif %}
+        </section>
+
+        {% if preview_items %}
+          <h2>将处理的条目{% if candidate_count > preview_limit %}（仅显示前 {{ preview_limit }} 条）{% endif %}</h2>
+          <div class="results">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>标题</th>
+                  <th>数据源</th>
+                  <th>AI 操作</th>
+                  <th>首次入库</th>
+                  <th>举办日期</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in preview_items %}
+                  <tr>
+                    <td><a href="{% url 'admin:radar_jobevent_change' item.pk %}">{{ item.pk }}</a></td>
+                    <td>{{ item.title }}</td>
+                    <td>{{ item.source.name }}</td>
+                    <td>
+                      {% if item.has_current_ai_snapshot %}
+                        <span class="research-action research-action--overwrite">覆盖现有总结</span>
+                      {% else %}
+                        <span class="research-action research-action--new">首次总结</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.first_seen_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ item.event_date|date:"Y-m-d"|default:"—" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      {% endif %}
+    </form>
+  </div>
+{% endblock %}

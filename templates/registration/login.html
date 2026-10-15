@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}登录 · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="login-layout">
+  <div class="login-copy">
+    <span class="eyebrow">PERSONAL JOB INBOX</span>
+    <h1>把招聘信息变成<br>一封有状态的收件箱。</h1>
+    <p>新出现、内容更新、已读、收藏和隐藏都会被记录。下次回来时，从真正没看过的地方继续。</p>
+    <div class="signal-line" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  </div>
+  <form method="post" class="login-card">
+    {% csrf_token %}
+    <div>
+      <span class="eyebrow">SIGN IN</span>
+      <h2>进入求职雷达</h2>
+    </div>
+    {% if form.errors %}<div class="form-error">用户名或密码不正确。</div>{% endif %}
+    <label>用户名<input type="text" name="username" autocomplete="username" required autofocus></label>
+    <label>密码<input type="password" name="password" autocomplete="current-password" required></label>
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <button class="button button--primary button--wide" type="submit">登录</button>
+    <p class="login-help">首次账号由服务器的环境变量创建。</p>
+  </form>
+</section>
+{% endblock %}

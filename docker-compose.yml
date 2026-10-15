@@ -1,0 +1,78 @@
+services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-development-only-change-before-public-use}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-change-me-before-public-use}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+      APP_API_TOKEN: ${APP_API_TOKEN:-change-this-api-token}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jobradar}:${POSTGRES_PASSWORD:-jobradar}@db:5432/${POSTGRES_DB:-jobradar}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      TIME_ZONE: ${TIME_ZONE:-Asia/Shanghai}
+      SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-false}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-false}
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
+      SYNC_ENABLED: ${SYNC_ENABLED:-true}
+      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-08:00,13:00,20:00}
+      RUN_SYNC_ON_STARTUP: ${RUN_SYNC_ON_STARTUP:-true}
+      SYNC_PAGE_SIZE: ${SYNC_PAGE_SIZE:-100}
+      SYNC_TIMEOUT_SECONDS: ${SYNC_TIMEOUT_SECONDS:-25}
+      SYNC_RETRIES: ${SYNC_RETRIES:-3}
+      MISSING_RUNS_TO_INACTIVE: ${MISSING_RUNS_TO_INACTIVE:-3}
+      NJUST_SCHOOL_CODE: ${NJUST_SCHOOL_CODE:-10288}
+      NJUST_BASE_URL: ${NJUST_BASE_URL:-https://njust.91job.org.cn}
+      FETCH_DETAILS: ${FETCH_DETAILS:-false}
+      AI_RESEARCH_ENABLED: ${AI_RESEARCH_ENABLED:-false}
+      AI_RESEARCH_PIPELINE_VERSION: ${AI_RESEARCH_PIPELINE_VERSION:-1}
+      AI_RESEARCH_MAX_ATTEMPTS: ${AI_RESEARCH_MAX_ATTEMPTS:-3}
+      AI_RESEARCH_LEASE_MINUTES: ${AI_RESEARCH_LEASE_MINUTES:-45}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      WEB_TIMEOUT: ${WEB_TIMEOUT:-60}
+    ports:
+      - "${WEB_PORT:-8080}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - internal
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jobradar}
+      POSTGRES_USER: ${POSTGRES_USER:-jobradar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobradar}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+
+networks:
+  internal:
+    driver: bridge

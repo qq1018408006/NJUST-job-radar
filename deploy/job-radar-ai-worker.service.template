@@ -1,0 +1,13 @@
+[Unit]
+Description=Job Radar local AI research worker (Codex / Claude Code / OpenCode)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory="__PROJECT_ROOT__"
+ExecStart=/usr/bin/python3 "__WORKER_PATH__"
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

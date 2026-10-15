@@ -1,0 +1,12 @@
+[Unit]
+Description=Poll Job Radar AI research queue every two minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=15s
+Persistent=true
+Unit=job-radar-ai-worker.service
+
+[Install]
+WantedBy=timers.target

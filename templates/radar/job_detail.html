@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }} · {{ app_name }}{% endblock %}
+{% block content %}
+<div class="detail-nav"><a href="{{ back_url }}">← 返回刚才的列表</a><span>已将版本 v{{ item.content_version }} 标记为已读</span></div>
+<article class="detail-layout">
+  <section class="detail-main">
+    <div class="detail-kicker">
+      <span class="mode-badge">{{ item.get_mode_display }}</span>
+      <span>{{ item.source.name }}</span>
+      {% if not item.is_active %}<span class="inactive-badge">来源已失效</span>{% endif %}
+    </div>
+    <h1>{{ item.title }}</h1>
+    {% if item.company %}<p class="detail-company">{{ item.company }}</p>{% endif %}
+    <div class="detail-grid">
+      <div><span>举办时间</span><strong>{% if item.event_start %}{{ item.event_start|date:"Y-m-d H:i" }}{% if item.event_end %}–{{ item.event_end|date:"H:i" }}{% endif %}{% elif item.event_date %}{{ item.event_date|date:"Y-m-d" }}{% else %}待定{% endif %}</strong></div>
+      <div><span>地点</span><strong>{{ item.location|default:"待定" }}</strong></div>
+      <div><span>学校</span><strong>{{ item.school|default:"未提供" }}</strong></div>
+      <div><span>来源状态</span><strong>{{ item.source_status_label }}</strong></div>
+      {% if item.contact_name or item.contact_phone %}<div><span>联系方式</span><strong>{{ item.contact_name }} {{ item.contact_phone }}</strong></div>{% endif %}
+      <div><span>首次发现</span><strong>{{ item.first_seen_at|date:"Y-m-d H:i" }}</strong></div>
+      <div><span>最近变化</span><strong>{{ item.last_changed_at|date:"Y-m-d H:i" }}</strong></div>
+      <div><span>内容版本</span><strong>v{{ item.content_version }}</strong></div>
+    </div>
+    {% if change_entries or has_unavailable_legacy_changes %}
+      <section class="change-history" aria-labelledby="change-history-title">
+        <div class="change-history__title">
+          <div>
+            <span class="eyebrow">CHANGE HISTORY</span>
+            <h2 id="change-history-title">具体更新内容</h2>
+          </div>
+          <span>最多展示最近 20 次</span>
+        </div>
+        {% if has_unavailable_legacy_changes %}
+          <p class="change-history__notice">此条目曾在启用字段级记录前发生更新，早期版本只能确认“有更新”，无法准确还原旧值。从现在开始的新变化会完整保留。</p>
+        {% endif %}
+        {% for entry in change_entries %}
+          <article class="change-entry{% if entry.is_pending %} change-entry--pending{% endif %}">
+            <header>
+              <strong>v{{ entry.version }}</strong>
+              <time>{{ entry.changed_at|date:"Y-m-d H:i" }}</time>
+              {% if entry.is_pending %}<span>自上次阅读以来</span>{% else %}<span class="change-entry__read">历史更新</span>{% endif %}
+            </header>
+            <div class="change-entry__fields">
+              {% for field in entry.fields %}
+                <div class="change-field">
+                  <strong>{{ field.label }}</strong>
+                  <div class="change-value change-value--before"><span>原来</span><p>{{ field.before|linebreaksbr }}</p></div>
+                  <div class="change-arrow" aria-hidden="true">→</div>
+                  <div class="change-value change-value--after"><span>现在</span><p>{{ field.after|linebreaksbr }}</p></div>
+                </div>
+              {% empty %}
+                <p class="change-history__notice">该版本已记录，但来源未提供可展示的字段差异。</p>
+              {% endfor %}
+            </div>
+          </article>
+        {% endfor %}
+      </section>
+    {% endif %}
+    {% if research_snapshot %}
+      <section class="ai-research" aria-labelledby="ai-research-title">
+        <header class="ai-research__head">
+          <div>
+            <span class="eyebrow">AI RESEARCH SNAPSHOT</span>
+            <h2 id="ai-research-title">单位研究快照</h2>
+          </div>
+          <div class="ai-research__meta">
+            <span>{{ research_snapshot.provider_label }}{% if research_snapshot.model_name %} · {{ research_snapshot.model_name }}{% endif %}</span>
+            <span>{{ research_snapshot.generated_at|date:"Y-m-d H:i" }} 生成</span>
+            <span>{{ research_result.confidence }} 置信度</span>
+          </div>
+        </header>
+        <p class="ai-research__disclaimer">由 AI 基于公开网页一次性检索整理，仅供求职判断参考；请通过下方来源复核关键事实。</p>
+
+        <section class="ai-overview">
+          <div class="ai-overview__labels">
+            <span>{{ research_result.organization.organization_type }}</span>
+            <span>{{ research_result.organization.listed_status }}</span>
+            {% for code in research_result.organization.stock_codes %}<span>{{ code }}</span>{% endfor %}
+          </div>
+          <h3>{{ research_result.organization.official_name }}</h3>
+          <p>{{ research_result.organization.overview }}</p>
+        </section>
+
+        {% if research_result.business_segments %}
+          <section class="ai-section">
+            <h3>业务组成</h3>
+            <div class="ai-card-grid">
+              {% for segment in research_result.business_segments %}
+                <article><strong>{{ segment.name }}</strong><p>{{ segment.description }}</p>{% if segment.source_ids %}<small>依据：{{ segment.source_ids|join:", " }}</small>{% endif %}</article>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+
+        <section class="ai-section">
+          <h3>隶属与单位层级</h3>
+          <dl class="ai-facts">
+            <div><dt>上级单位</dt><dd>{{ research_result.affiliation.parent_organization|default:"未确认" }}</dd></div>
+            <div><dt>隶属链</dt><dd>{% if research_result.affiliation.affiliation_chain %}{{ research_result.affiliation.affiliation_chain|join:" → " }}{% else %}未确认{% endif %}</dd></div>
+            <div><dt>层级判断</dt><dd>{{ research_result.affiliation.administrative_level|default:"未确认" }}</dd></div>
+            <div><dt>判断依据</dt><dd>{{ research_result.affiliation.level_basis|default:"未确认" }}</dd></div>
+          </dl>
+        </section>
+
+        {% if research_result.financials %}
+          <section class="ai-section">
+            <h3>最近三年财务信息</h3>
+            <div class="ai-financials">
+              {% for row in research_result.financials %}
+                <article>
+                  <h4>{{ row.fiscal_year }}</h4>
+                  <dl>
+                    <div><dt>营业收入</dt><dd>{{ row.revenue|default:"未确认" }}</dd></div>
+                    <div><dt>营业成本</dt><dd>{{ row.operating_cost|default:"未确认" }}</dd></div>
+                    <div><dt>期间费用</dt><dd>{{ row.period_expenses|default:"未确认" }}</dd></div>
+                    <div><dt>研发费用</dt><dd>{{ row.rd_expense|default:"未确认" }}</dd></div>
+                    <div><dt>归母净利润</dt><dd>{{ row.net_profit|default:"未确认" }}</dd></div>
+                  </dl>
+                  {% if row.note %}<p>{{ row.note }}</p>{% endif %}
+                  {% if row.source_ids %}<small>依据：{{ row.source_ids|join:", " }}</small>{% endif %}
+                </article>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+
+        <section class="ai-section">
+          <h3>站在求职者角度</h3>
+          <p class="ai-outlook">{{ research_result.career_assessment.development_outlook }}</p>
+          <div class="ai-three-columns">
+            <div><strong>增长驱动</strong><ul>{% for value in research_result.career_assessment.growth_drivers %}<li>{{ value }}</li>{% empty %}<li>暂无可靠结论</li>{% endfor %}</ul></div>
+            <div><strong>风险与不确定性</strong><ul>{% for value in research_result.career_assessment.risks %}<li>{{ value }}</li>{% empty %}<li>暂无可靠结论</li>{% endfor %}</ul></div>
+            <div><strong>求职关注点</strong><ul>{% for value in research_result.career_assessment.job_seeker_takeaways %}<li>{{ value }}</li>{% empty %}<li>暂无可靠结论</li>{% endfor %}</ul></div>
+          </div>
+        </section>
+
+        {% if research_result.unknowns %}
+          <section class="ai-section ai-unknowns"><h3>尚未确认</h3><ul>{% for value in research_result.unknowns %}<li>{{ value }}</li>{% endfor %}</ul></section>
+        {% endif %}
+
+        <section class="ai-section ai-sources">
+          <h3>检索来源</h3>
+          <ol>
+            {% for source in research_result.sources %}
+              <li id="ai-source-{{ source.id }}"><a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">{{ source.id }} · {{ source.title }}</a><span>{{ source.publisher }}{% if source.published_at %} · {{ source.published_at }}{% endif %}</span></li>
+            {% empty %}<li>AI 未返回可核验来源。</li>{% endfor %}
+          </ol>
+        </section>
+
+        <section class="ai-section ai-usage" aria-labelledby="ai-usage-title">
+          <h3 id="ai-usage-title">本次 AI 用量</h3>
+          {% if research_snapshot.has_token_usage %}
+            <div class="ai-usage__grid">
+              <div><span>输入 Token</span><strong>{{ research_snapshot.input_tokens }}</strong></div>
+              <div><span>输出 Token</span><strong>{{ research_snapshot.output_tokens }}</strong></div>
+              <div><span>总计</span><strong>{{ research_snapshot.total_tokens }}</strong></div>
+            </div>
+            {% if research_snapshot.cached_input_tokens is not None or research_snapshot.reasoning_output_tokens is not None %}
+              <p class="ai-usage__detail">
+                {% if research_snapshot.cached_input_tokens is not None %}其中缓存输入 {{ research_snapshot.cached_input_tokens }} Token{% endif %}
+                {% if research_snapshot.cached_input_tokens is not None and research_snapshot.reasoning_output_tokens is not None %}；{% endif %}
+                {% if research_snapshot.reasoning_output_tokens is not None %}推理输出 {{ research_snapshot.reasoning_output_tokens }} Token{% endif %}
+              </p>
+            {% endif %}
+          {% else %}
+            <p class="ai-usage__missing">本次工具未报告完整 Token 用量，或该历史快照未记录用量。</p>
+          {% endif %}
+        </section>
+      </section>
+    {% elif research_task %}
+      <section class="ai-research ai-research--status">
+        <span class="eyebrow">AI RESEARCH SNAPSHOT</span>
+        <h2>单位研究快照</h2>
+        {% if research_task.status == "pending" %}<p>已进入研究队列，等待 AI 研究工具处理。</p>
+        {% elif research_task.status == "running" %}<p>AI 研究工具正在联网检索并整理公开信息……</p>
+        {% else %}<p>研究任务暂时失败：{{ research_task.error|default:"未提供错误信息" }}</p>{% endif %}
+      </section>
+    {% endif %}
+    {% if item.description_text %}<section class="description"><h2>详情</h2><p>{{ item.description_text|linebreaksbr }}</p></section>{% endif %}
+    <a class="source-link" href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">在原始网站查看 ↗</a>
+  </section>
+  <aside class="detail-side">
+    <section class="state-card">
+      <span class="eyebrow">PERSONAL STATE</span>
+      <h2>我的状态</h2>
+      <div class="state-actions">
+        <form method="post" action="{% url 'item-state' item.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="button {% if state.starred %}button--accent{% else %}button--ghost-dark{% endif %}" name="action" value="{% if state.starred %}unstar{% else %}star{% endif %}">{% if state.starred %}★ 已收藏{% else %}☆ 收藏{% endif %}</button></form>
+        <form method="post" action="{% url 'item-state' item.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ back_url }}"><button class="button button--ghost-dark" name="action" value="{% if state.hidden %}unhide{% else %}hide{% endif %}">{% if state.hidden %}取消隐藏{% else %}隐藏{% endif %}</button></form>
+        <form method="post" action="{% url 'item-state' item.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ back_url }}"><button class="button button--ghost-dark" name="action" value="unread">重新标为未读</button></form>
+      </div>
+    </section>
+    <form method="post" action="{% url 'item-state' item.pk %}" class="note-card">
+      {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><input type="hidden" name="action" value="note">
+      <label for="note">私人备注</label>
+      <textarea id="note" name="note" rows="7" placeholder="记录投递情况、准备事项或与你的匹配点……">{{ state.note }}</textarea>
+      <button class="button button--primary button--wide" type="submit">保存备注</button>
+    </form>
+  </aside>
+</article>
+{% endblock %}
