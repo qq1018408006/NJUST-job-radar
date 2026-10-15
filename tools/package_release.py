@@ -25,6 +25,7 @@ SOURCE_SUFFIXES = {
 # credentials, downloaded recruitment data, AI responses or execution traces.
 SOURCE_FILES = {
     ".github/workflows/ci.yml",
+    "docs/assets/readme-poster.png",
     "deploy/job-radar-ai-worker.service.template",
     "deploy/job-radar-ai-worker.timer",
     "prompts/employer_research.txt",

@@ -1,4 +1,5 @@
 .git
+docs/assets/readme-poster.png
 .env
 .env.*
 !.env.example

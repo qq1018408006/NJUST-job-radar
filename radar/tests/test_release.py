@@ -43,6 +43,7 @@ class ReleaseTests(SimpleTestCase):
             root = Path(temp_dir) / "source"
             approved = {
                 "research.schema.json", "radar/views.py", "templates/base.html",
+                "docs/assets/readme-poster.png",
                 ".github/workflows/ci.yml", "prompts/employer_research.txt",
                 "deploy/job-radar-ai-worker.service.template",
                 "deploy/job-radar-ai-worker.timer",
@@ -58,6 +59,7 @@ class ReleaseTests(SimpleTestCase):
                 "config/credentials/local.py", "tools/Secrets/token.py",
                 ".github/.hidden/private.yml", "prompts/real_response.txt",
                 "deploy/private.service", "radar/secret.pem", "radar/db.sqlite",
+                "docs/assets/private-screenshot.png", "docs/assets/.codex/auth.json",
             }
             for name in approved | private:
                 path = root / name
